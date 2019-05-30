@@ -3,6 +3,7 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
+#include <Preferences.h>
 #include "src/animations/colorwipe/ColorWipeAnimation.h"
 #include "src/animations/colorfade/ColorFadeAnimation.h"
 #include "src/animations/fillsolid/FillSolidAnimation.h"
@@ -29,6 +30,8 @@ CHSV *currentColor = new CHSV(266, 51, 43);
 int currentBrightness = 255;
 int currentDelayTime = 50;
 
+Preferences preferences;
+
 MeteorAnimation meteorAnimation(leds, LED_COUNT, *currentColor, LED_COUNT, currentDelayTime);
 FillSolidAnimation fillSolidAnimation(leds, LED_COUNT, *currentColor);
 ColorWipeAnimation colorWipeAnimation(leds, LED_COUNT, 10, *currentColor, currentDelayTime);
@@ -37,6 +40,8 @@ ColorFadeAnimation colorFadeAnimation(leds, LED_COUNT, *currentColor, currentDel
 void setup()
 {
 	Serial.begin(115200);
+
+	preferences.begin("led-controller", true);
 
 	FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, LED_COUNT);
 	FastLED.setBrightness(currentBrightness);
@@ -47,20 +52,22 @@ void setup()
 	ledService = pServer->createService(BLE_SERVICE_ID);
 	
 	animationCharacteristic = ledService->createCharacteristic(BLE_ANIMATION_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-	int animation = AnimationType::FillSolid;
+	int animation = preferences.getUInt("animation", AnimationType::FillSolid);
 	animationCharacteristic->setValue(animation);
 
 	colorCharacteristic = ledService->createCharacteristic(BLE_COLOR_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-	int color = 0xFFFFFF;
+	int color = preferences.getInt("color", 0xFFFFFF);
 	colorCharacteristic->setValue(color);
 
 	brightnessCharacteristic = ledService->createCharacteristic(BLE_BRIGHTNESS_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-	int brightness = 255;
+	int brightness = preferences.getUInt("brightness", 255);
 	brightnessCharacteristic->setValue(brightness);
 
 	delayTimeCharacteristic = ledService->createCharacteristic(BLE_DELAYTIME_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-	int delayTime = 50;
+	int delayTime = preferences.getUInt("delayTime", 50);
 	delayTimeCharacteristic->setValue(delayTime);
+
+	preferences.end();
 
 	ledService->start();
 
@@ -72,29 +79,42 @@ void setup()
 	BLEDevice::startAdvertising();
 }
 
-void loop()
-{
+int getColorAsInt() {
+	std::string color = colorCharacteristic->getValue();
+
+	return (color.data()[2] << 16) | (color.data()[1] << 8) | color.data()[0];
+}
+
+void loop() {
+	preferences.begin("led-controller", false);
+
 	AnimationType animation = static_cast<AnimationType>(animationCharacteristic->getValue().data()[0]);
+	preferences.putUInt("animation", animation);
 
 	int brightness = brightnessCharacteristic->getValue().data()[0];
 	if (brightness != currentBrightness) {
+		preferences.putUInt("brightness", brightness);
 		currentBrightness = brightness;
 		FastLED.setBrightness(currentBrightness);
 		FastLED.show();
 	}
 
 	std::string color = colorCharacteristic->getValue();
+	preferences.putInt("color", getColorAsInt());
 	currentColor->h = color.data()[0];
 	currentColor->s = color.data()[1];
 	currentColor->v = color.data()[2];
 
 	int delayTime = delayTimeCharacteristic->getValue().data()[0];
 	if (delayTime != currentDelayTime) {
+		preferences.putUInt("delayTime", delayTime);
 		meteorAnimation.setDelayTime(delayTime);
 		colorWipeAnimation.setDelayTime(delayTime);
 		colorFadeAnimation.setDelayTime(delayTime);
 		currentDelayTime = delayTime;
 	}
+
+	preferences.end();
 
 	switch(animation) {
 		case Meteor: {
