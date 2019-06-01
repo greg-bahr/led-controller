@@ -29,6 +29,7 @@ CRGB leds[LED_COUNT];
 CHSV *currentColor = new CHSV(266, 51, 43);
 int currentBrightness = 255;
 int currentDelayTime = 50;
+AnimationType currentAnimation;
 
 Preferences preferences;
 
@@ -67,6 +68,12 @@ void setup()
 	int delayTime = preferences.getUInt("delayTime", 50);
 	delayTimeCharacteristic->setValue(delayTime);
 
+	preferences.clear();
+	preferences.putUInt("animation", animation);
+	preferences.putUInt("delayTime", delayTime);
+	preferences.putUInt("brightness", brightness);
+	preferences.putInt("color", color);
+
 	preferences.end();
 
 	ledService->start();
@@ -86,37 +93,54 @@ int getColorAsInt() {
 }
 
 void loop() {
-	preferences.begin("led-controller", false);
+	int animationNum = animationCharacteristic->getValue().data()[0];
+	if (animationNum != currentAnimation) {
+		currentAnimation = static_cast<AnimationType>(animationNum);
 
-	AnimationType animation = static_cast<AnimationType>(animationCharacteristic->getValue().data()[0]);
-	preferences.putUInt("animation", animation);
-
+		preferences.begin("led-controller", false);
+		preferences.putUInt("animation", currentAnimation);
+		preferences.end();
+	}
+	
 	int brightness = brightnessCharacteristic->getValue().data()[0];
 	if (brightness != currentBrightness) {
+		preferences.begin("led-controller", false);
 		preferences.putUInt("brightness", brightness);
+		preferences.end();
+
 		currentBrightness = brightness;
 		FastLED.setBrightness(currentBrightness);
 		FastLED.show();
 	}
 
 	std::string color = colorCharacteristic->getValue();
-	preferences.putInt("color", getColorAsInt());
-	currentColor->h = color.data()[0];
-	currentColor->s = color.data()[1];
-	currentColor->v = color.data()[2];
+	int h = color.data()[0];
+	int s = color.data()[1];
+	int v = color.data()[2];
 
+	if (h != currentColor->h || s != currentColor->s || v != currentColor->v) {
+		preferences.begin("led-controller", false);
+		preferences.putInt("color", getColorAsInt());
+		preferences.end();
+
+		currentColor->h = color.data()[0];
+		currentColor->s = color.data()[1];
+		currentColor->v = color.data()[2];
+	}
+	
 	int delayTime = delayTimeCharacteristic->getValue().data()[0];
 	if (delayTime != currentDelayTime) {
+		preferences.begin("led-controller", false);
 		preferences.putUInt("delayTime", delayTime);
+		preferences.end();
+
 		meteorAnimation.setDelayTime(delayTime);
 		colorWipeAnimation.setDelayTime(delayTime);
 		colorFadeAnimation.setDelayTime(delayTime);
 		currentDelayTime = delayTime;
 	}
 
-	preferences.end();
-
-	switch(animation) {
+	switch(currentAnimation) {
 		case Meteor: {
 			meteorAnimation.run();
 			break;
