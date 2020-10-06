@@ -40,7 +40,7 @@ ColorFadeAnimation colorFadeAnimation(leds, LED_COUNT, *currentColor, currentDel
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   preferences.begin("led-controller", true);
 
