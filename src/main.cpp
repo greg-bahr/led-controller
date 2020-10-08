@@ -30,6 +30,8 @@ BLECharacteristic *animationCharacteristic;
 BLECharacteristic *delayTimeCharacteristic;
 BLEService *ledService;
 
+bool connectedToWifi = false;
+
 CRGB leds[LED_COUNT];
 
 CHSV *currentColor = new CHSV(100, 100, 100);
@@ -43,33 +45,23 @@ Preferences preferences;
 void switchAnimation() {
   delete animation;
 
-  switch (currentAnimation)
-  {
+  switch (currentAnimation) {
     case Meteor:
-    {
       animation = new MeteorAnimation(leds, LED_COUNT, *currentColor, LED_COUNT, currentDelayTime);
       break;
-    }
     case FillSolid:
-    {
       animation = new FillSolidAnimation(leds, LED_COUNT, *currentColor);
       break;
-    }
     case ColorWipe:
-    {
       animation = new ColorWipeAnimation(leds, LED_COUNT, 10, *currentColor, currentDelayTime);
       break;
-    }
     case ColorFade:
-    {
       animation = new ColorFadeAnimation(leds, LED_COUNT, *currentColor, currentDelayTime);
       break;
-    }
   }
 }
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
   Serial.println();
 
@@ -88,16 +80,14 @@ void setup()
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  while (WiFi.waitForConnectResult() != WL_CONNECTED)
-  {
-    Serial.println("Connection failed! Restarting...");
-    delay(2000);
-    ESP.restart();
-  }
+  connectedToWifi = WiFi.waitForConnectResult() == WL_CONNECTED;
 
-  ArduinoOTA.setHostname("led-controller");
+  if (!connectedToWifi) {
+    Serial.println("Connection failed! OTA Updates will be disabled!");
+  } else {
+    ArduinoOTA.setHostname("led-controller");
 
-  ArduinoOTA
+    ArduinoOTA
       .onStart([]() {
         String type;
         if (ArduinoOTA.getCommand() == U_FLASH)
@@ -127,7 +117,8 @@ void setup()
           Serial.println("End Failed");
       });
 
-  ArduinoOTA.begin();
+    ArduinoOTA.begin();
+  }
 
   preferences.begin("led-controller", true);
 
@@ -169,20 +160,19 @@ void setup()
   BLEDevice::startAdvertising();
 }
 
-int getColorAsInt()
-{
+int getColorAsInt() {
   std::string color = colorCharacteristic->getValue();
 
   return (color.data()[2] << 16) | (color.data()[1] << 8) | color.data()[0];
 }
 
-void loop()
-{
-  ArduinoOTA.handle();
+void loop() {
+  if (connectedToWifi) {
+    ArduinoOTA.handle();
+  }
 
   int animationNum = animationCharacteristic->getValue().data()[0];
-  if (animationNum != currentAnimation)
-  {
+  if (animationNum != currentAnimation) {
     currentAnimation = static_cast<AnimationType>(animationNum);
     switchAnimation();
 
@@ -192,8 +182,7 @@ void loop()
   }
 
   int brightness = brightnessCharacteristic->getValue().data()[0];
-  if (brightness != currentBrightness)
-  {
+  if (brightness != currentBrightness) {
     preferences.begin("led-controller", false);
     preferences.putUInt("brightness", brightness);
     preferences.end();
@@ -208,8 +197,7 @@ void loop()
   int s = color.data()[1];
   int v = color.data()[2];
 
-  if (h != currentColor->h || s != currentColor->s || v != currentColor->v)
-  {
+  if (h != currentColor->h || s != currentColor->s || v != currentColor->v) {
     preferences.begin("led-controller", false);
     preferences.putInt("color", getColorAsInt());
     preferences.end();
@@ -220,8 +208,7 @@ void loop()
   }
 
   int delayTime = delayTimeCharacteristic->getValue().data()[0];
-  if (delayTime != currentDelayTime)
-  {
+  if (delayTime != currentDelayTime) {
     preferences.begin("led-controller", false);
     preferences.putUInt("delayTime", delayTime);
     preferences.end();
