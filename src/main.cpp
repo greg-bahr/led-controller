@@ -122,9 +122,6 @@ void setup() {
 
   preferences.begin("led-controller", true);
 
-  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, LED_COUNT);
-  FastLED.setBrightness(currentBrightness);
-
   BLEDevice::init("LED Receiver");
   BLEServer *pServer = BLEDevice::createServer();
 
@@ -149,8 +146,10 @@ void setup() {
   switchAnimation();
 
   preferences.end();
-
   ledService->start();
+
+  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, LED_COUNT);
+  FastLED.setBrightness(currentBrightness);
 
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(BLE_SERVICE_ID);
