@@ -13,7 +13,7 @@ class Animation {
         Animation(CRGB* leds, const int LED_COUNT, int delayTime) 
             : leds(leds), LED_COUNT(LED_COUNT), delayTime(delayTime), lastTimeRan(0), isSetup(false) { }
         virtual ~Animation(){}
-        virtual void setup() = 0;
+        virtual void setup(){};
         void setDelayTime(int delayTime);
         void run();
     protected:
@@ -21,7 +21,7 @@ class Animation {
         const int LED_COUNT;
         int delayTime;
     private:
-        virtual void stepFrame() = 0;
+        virtual void stepFrame(){};
         long lastTimeRan;
         bool isSetup;
 };

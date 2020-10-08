@@ -10,12 +10,11 @@ class ColorWipeAnimation : public Animation {
         ~ColorWipeAnimation(){}
         ColorWipeAnimation(CRGB* leds, int LED_COUNT, int size, const struct CHSV& color, int delayTime) 
             : Animation(leds, LED_COUNT, delayTime), headIndex(0), size(size), color(color) { }
-        void setup(){};
     private:
         int headIndex;
         const int size;
         const struct CHSV& color;
-        void stepFrame();
+        void stepFrame() override;
 };
 
 #endif

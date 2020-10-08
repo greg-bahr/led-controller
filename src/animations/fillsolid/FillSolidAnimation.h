@@ -10,10 +10,10 @@ class FillSolidAnimation : public Animation {
         ~FillSolidAnimation(){}
         FillSolidAnimation(CRGB* leds, int LED_COUNT, CHSV& color) 
             : Animation(leds, LED_COUNT, 500), color(color) { }
-        void setup();
+        void setup() override;
     private:
         CHSV& color;
-        void stepFrame();
+        void stepFrame() override;
 };
 
 #endif

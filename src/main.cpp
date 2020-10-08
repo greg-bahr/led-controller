@@ -32,17 +32,41 @@ BLEService *ledService;
 
 CRGB leds[LED_COUNT];
 
-CHSV *currentColor = new CHSV(240, 51, 43);
+CHSV *currentColor = new CHSV(100, 100, 100);
 int currentBrightness = 255;
 int currentDelayTime = 50;
 AnimationType currentAnimation;
+Animation* animation;
 
 Preferences preferences;
 
-MeteorAnimation meteorAnimation(leds, LED_COUNT, *currentColor, LED_COUNT, currentDelayTime);
-FillSolidAnimation fillSolidAnimation(leds, LED_COUNT, *currentColor);
-ColorWipeAnimation colorWipeAnimation(leds, LED_COUNT, 10, *currentColor, currentDelayTime);
-ColorFadeAnimation colorFadeAnimation(leds, LED_COUNT, *currentColor, currentDelayTime);
+void switchAnimation() {
+  delete animation;
+
+  switch (currentAnimation)
+  {
+    case Meteor:
+    {
+      animation = new MeteorAnimation(leds, LED_COUNT, *currentColor, LED_COUNT, currentDelayTime);
+      break;
+    }
+    case FillSolid:
+    {
+      animation = new FillSolidAnimation(leds, LED_COUNT, *currentColor);
+      break;
+    }
+    case ColorWipe:
+    {
+      animation = new ColorWipeAnimation(leds, LED_COUNT, 10, *currentColor, currentDelayTime);
+      break;
+    }
+    case ColorFade:
+    {
+      animation = new ColorFadeAnimation(leds, LED_COUNT, *currentColor, currentDelayTime);
+      break;
+    }
+  }
+}
 
 void setup()
 {
@@ -115,27 +139,23 @@ void setup()
 
   ledService = pServer->createService(BLE_SERVICE_ID);
 
-  animationCharacteristic = ledService->createCharacteristic(BLE_ANIMATION_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-  int animation = preferences.getUInt("animation", AnimationType::FillSolid);
-  animationCharacteristic->setValue(animation);
-
   colorCharacteristic = ledService->createCharacteristic(BLE_COLOR_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
   int color = preferences.getInt("color", 0xFFFFFF);
   colorCharacteristic->setValue(color);
 
   brightnessCharacteristic = ledService->createCharacteristic(BLE_BRIGHTNESS_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-  int brightness = preferences.getUInt("brightness", 255);
-  brightnessCharacteristic->setValue(brightness);
+  currentBrightness = preferences.getUInt("brightness", 255);
+  brightnessCharacteristic->setValue(currentBrightness);
 
   delayTimeCharacteristic = ledService->createCharacteristic(BLE_DELAYTIME_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
-  int delayTime = preferences.getUInt("delayTime", 50);
-  delayTimeCharacteristic->setValue(delayTime);
+  currentDelayTime = preferences.getUInt("delayTime", 50);
+  delayTimeCharacteristic->setValue(currentDelayTime);
 
-  preferences.clear();
-  preferences.putUInt("animation", animation);
-  preferences.putUInt("delayTime", delayTime);
-  preferences.putUInt("brightness", brightness);
-  preferences.putInt("color", color);
+  animationCharacteristic = ledService->createCharacteristic(BLE_ANIMATION_CHARACTERISTIC_ID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+  int animationNum = preferences.getUInt("animation", AnimationType::FillSolid);
+  currentAnimation = static_cast<AnimationType>(animationNum);
+  animationCharacteristic->setValue(animationNum);
+  switchAnimation();
 
   preferences.end();
 
@@ -164,6 +184,7 @@ void loop()
   if (animationNum != currentAnimation)
   {
     currentAnimation = static_cast<AnimationType>(animationNum);
+    switchAnimation();
 
     preferences.begin("led-controller", false);
     preferences.putUInt("animation", currentAnimation);
@@ -205,33 +226,9 @@ void loop()
     preferences.putUInt("delayTime", delayTime);
     preferences.end();
 
-    meteorAnimation.setDelayTime(delayTime);
-    colorWipeAnimation.setDelayTime(delayTime);
-    colorFadeAnimation.setDelayTime(delayTime);
     currentDelayTime = delayTime;
+    animation->setDelayTime(delayTime);
   }
 
-  switch (currentAnimation)
-  {
-  case Meteor:
-  {
-    meteorAnimation.run();
-    break;
-  }
-  case FillSolid:
-  {
-    fillSolidAnimation.run();
-    break;
-  }
-  case ColorWipe:
-  {
-    colorWipeAnimation.run();
-    break;
-  }
-  case ColorFade:
-  {
-    colorFadeAnimation.run();
-    break;
-  }
-  }
+  animation->run();
 }

@@ -10,9 +10,8 @@ class MeteorAnimation : public Animation {
         ~MeteorAnimation(){}
         MeteorAnimation(CRGB* leds, int LED_COUNT, CHSV& color, int size, int delayTime) 
             : Animation(leds, LED_COUNT, delayTime), color(color), size(size), currentHead(0) { }
-        void setup(){}
     private:
-        void stepFrame();
+        void stepFrame() override;
         CHSV& color;
         int size;
         int currentHead;

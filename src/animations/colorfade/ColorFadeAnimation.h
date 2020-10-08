@@ -10,9 +10,9 @@ class ColorFadeAnimation : public Animation {
         ~ColorFadeAnimation(){}
         ColorFadeAnimation(CRGB* leds, int LED_COUNT, CHSV& startColor, int delayTime) 
             : Animation(leds, LED_COUNT, delayTime), startColor(startColor) { }
-        void setup();
+        void setup() override;
     private:
-        void stepFrame();
+        void stepFrame() override;
         CHSV& startColor;
         CHSV currentColor;
 };
